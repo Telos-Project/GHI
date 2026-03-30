@@ -4,8 +4,8 @@
 
 ***Houston, We Have a Solution***
 
-GHI, or the General Hardare Interface, is a set of communication conventions and an associated JSON
-format for IoT telemetry.
+GHI, or the General Hardware Interface, is a set of communication conventions and an associated
+JSON format for IoT telemetry.
 
 ## 2 - Contents
 
