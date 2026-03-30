@@ -58,12 +58,14 @@ The state of a GHI node may include connection configurations for both internet 
 access. With whatever means are made available to it, a GHI node will attempt to establish internet
 connection.
 
-#### 2.1.7 - Orchestration
+#### 2.1.7 - Dynamic Casting
 
-A GHI node is to attempt to list its ID and the URL of its server on shared databases such that
-roaming IP addresses will not be an issue.
+Dynamic casting is a mechanism by which a server advertises its reachability through a dynamically
+created reverse tunnel. At regular intervals, the server publishes a record to a shared registry.
+Each record contains a persistent device ID, a temporary tunnel URL, and a creation timestamp.
+Clients read from this registry and use the tunnel URL to communicate directly with the server.
 
-To this end, GHI may use [Orca](https://github.com/Telos-Project/Orca) logs for this purpose.
+GHI nodes use [Orca](https://github.com/Telos-Project/Orca) logs for dynamic casting.
 
 #### 2.1.8 - Interfaces
 
@@ -106,8 +108,9 @@ A utility representing an internet connection point shall have the tag "ghi-conn
 have the property fields "name", containing a string specifying the name of the access point, and
 "password", containing a string specifying the password of the access point.
 
-A utility representing an Orca log location shall have the tag "ghi-log", and its content shall be
-an [OQL](https://github.com/Telos-Project/OmniQuery) query specifying the location of said log.
+A utility representing an Orca log location for dynamic casting shall have the tag "ghi-log", and
+its content shall be an [OQL](https://github.com/Telos-Project/OmniQuery) query specifying the
+location of said log.
 
 ##### 2.2.3.2 - Credentials
 
