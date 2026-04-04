@@ -202,7 +202,7 @@ module.exports = [
 
 			return tokens.length == 0 ?
 				true :
-				tokens.include(packet.content.request.headers?.Authorization);
+				tokens.includes(packet.content.request.headers?.Authorization);
 		}
 	}
 ];
