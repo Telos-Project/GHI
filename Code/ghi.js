@@ -1,5 +1,6 @@
 var apint = require("apint");
 var busNet = require("bus-net");
+var cronUtils = require("./cronUtils.js");
 var deviceUtils = require("./deviceUtils.js");
 var dynamicCast = require("./dynamicCast.js");
 var fs = require("fs");
@@ -41,7 +42,25 @@ function overlay(target, value) {
 }
 
 module.exports = [
-	telosUtils.create((package) => {
+	telosUtils.createCommand("ghi-enable", (package) => {
+
+		let args = telosUtils.getArguments(package);
+
+		cronUtils.removeJob({ id: "ghi-enable" });
+
+		cronUtils.createJob({
+			id: "ghi-enable",
+			command: `${
+				require("child_process").execFileSync(
+					"which", ["npx"], { encoding: "utf8" }
+				).trim()
+			} telos-origin telos-server telos-ghi -e ghi -port ${
+				args.options.port != null ? args.options.port : 3000
+			} -pool '${args.options.pool}'`,
+			trigger: { type: "startup" },
+		});
+	}),
+	telosUtils.createCommand("ghi", (package) => {
 
 		try {
 			state = JSON.parse(fs.readFileSync(persistPath, "utf-8"));
@@ -58,48 +77,16 @@ module.exports = [
 			args.options.pool,
 			["ghi"]
 		);
+
+		telosUtils.initiateEngine();
 	}),
-	telosUtils.createTask(60, true, () => {
+	telosUtils.createTask(60, false, () => {
 
 		deviceUtils.getDevices((data) => {
 			state = data;
 		});
 	}),
-	{
-		query: (packet) => {
-			
-			if(!serverUtils.isHTTPJSON(packet))
-				return null;
-
-			let prohibit = false;
-
-			busNet.call(
-				{ request: JSON.stringify(state), tags: ["ghi", "verify"] }
-			).forEach(verification => {
-
-				if(typeof verification == "boolean" && !verification)
-					prohibit = true;
-			});
-
-			if(prohibit)
-				return;
-
-			if(packet.request.method == "GET")
-				return { body: JSON.stringify(state), priority: 1 };
-
-			if(packet.request.method == "POST") {
-
-				try {
-					state = overlay(state, JSON.parse(packet.body));
-				}
-
-				catch(error) {
-
-				}
-			}
-		}
-	},
-	telosUtils.createTask(1 / 60, true, () => {
+	telosUtils.createTask(1 / 60, false, () => {
 
 		getByType(state, "telos-module", true).map(
 			item => item.content
@@ -124,7 +111,7 @@ module.exports = [
 		});
 
 		busNet.call(
-			{ state: JSON.stringify(state), tags: ["ghi", "process"] }
+			JSON.stringify({ content: state, tags: ["ghi", "process"] })
 		).forEach(update => {
 
 			try {
@@ -140,21 +127,62 @@ module.exports = [
 			}
 		});
 	}),
-	telosUtils.createTask(1, true, () => {
+	telosUtils.createTask(1, false, () => {
 
-		fs.mkdirSync(path.dirname(persistPath), { recursive: true });
+		try {
 
-		fs.writeFileSync(
-			persistPath,
-			JSON.stringify(getByType(state, "ghi-persist").reduce(
-				(value, item, index) => {
+			fs.mkdirSync(path.dirname(persistPath), { recursive: true });
 
-					value[`${index}`] = item;
-					
-					return item;
-				},
-				{ }
-			))
-		);
-	})
+			fs.writeFileSync(
+				persistPath,
+				JSON.stringify(getByType(state, "ghi-persist").reduce(
+					(value, item, index) => {
+
+						value[`${index}`] = item;
+						
+						return item;
+					},
+					{ }
+				))
+			);
+		}
+
+		catch(error) {
+
+		}
+	}),
+	{
+		query: (packet) => {
+			
+			if(!serverUtils.isHTTPJSON(packet))
+				return null;
+
+			let prohibit = false;
+
+			busNet.call(
+				JSON.stringify({ content: packet, tags: ["ghi", "verify"] })
+			).forEach(verification => {
+
+				if(typeof verification == "boolean" && !verification)
+					prohibit = true;
+			});
+
+			if(prohibit)
+				return;
+
+			if(packet.request.method == "GET")
+				return { body: JSON.stringify(state), priority: 1 };
+
+			if(packet.request.method == "POST") {
+
+				try {
+					state = overlay(state, JSON.parse(packet.body));
+				}
+
+				catch(error) {
+
+				}
+			}
+		}
+	}
 ];
