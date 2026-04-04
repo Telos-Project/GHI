@@ -140,7 +140,7 @@ module.exports = [
 
 						value[`${index}`] = item;
 						
-						return item;
+						return value;
 					},
 					{ }
 				))
