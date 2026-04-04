@@ -160,7 +160,10 @@ module.exports = [
 			let prohibit = false;
 
 			busNet.call(
-				JSON.stringify({ content: packet, tags: ["ghi", "verify"] })
+				JSON.stringify({
+					content: { request: packet, state: state },
+					tags: ["ghi", "verify"]
+				})
 			).forEach(verification => {
 
 				if(typeof verification == "boolean" && !verification)
@@ -183,6 +186,23 @@ module.exports = [
 
 				}
 			}
+		}
+	},
+	{
+		query: (packet) => {
+
+			if(!telosUtils.validatePacket(packet, ["ghi", "verify"]))
+				return;
+
+			packet = typeof packet == "string" ? JSON.parse(packet) : packet;
+
+			let tokens = state.getByType(
+				packet.content.state, "ghi-token"
+			).map(item => `Bearer ${item.content}`);
+
+			return tokens.length == 0 ?
+				true :
+				tokens.include(packet.content.request.headers?.Authorization);
 		}
 	}
 ];
