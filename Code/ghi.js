@@ -204,5 +204,43 @@ module.exports = [
 				true :
 				tokens.includes(packet.content.request.headers?.Authorization);
 		}
+	},
+	{
+		query: (packet) => {
+
+			if(!telosUtils.validatePacket(packet, ["ghi", "process"]))
+				return;
+
+			packet = typeof packet == "string" ? JSON.parse(packet) : packet;
+
+			let result = { };
+
+			state.getByType(
+				packet.content.state, "ghi-script"
+			).forEach(item => {
+				
+				if(![
+					"javascript", "js"
+				].includes(item.properties.language.toLowerCase())) {
+					
+					try {
+
+						let value = (new Function(item.content))(
+							JSON.stringify(state)
+						);
+
+						result = overlay(
+							result, value != null ? JSON.parse(value) : { }
+						);
+					}
+
+					catch(error) {
+
+					}
+				}
+			});
+
+			return result;
+		}
 	}
 ];

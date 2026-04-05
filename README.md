@@ -100,9 +100,23 @@ A utility representing a GHI script shall have the code of the script as its con
 the tag "ghi-script", and shall have the property field "language", containing a string specifying
 the language of the script.
 
-#### 2.2.3 - Settings
+#### 2.2.3 - Persistence
 
-##### 2.2.3.1 - Connections
+A utility with the tag "ghi-persist" shall persist in the state of a GHI node between system
+resets.
+
+#### 2.2.4 - Telos Origin
+
+If its server is running on [Telos Origin](https://github.com/Telos-Project/Telos-Origin), a GHI
+node's state may integrate with the APInt of the Telos Origin instance.
+
+As such, any utility with the primary type "telos-module" in such a GHI node's state shall have its
+content dynamically integrated into the [bus net](https://github.com/Telos-Project/Bus-Net) of the
+Telos Origin instance on which it is running.
+
+#### 2.2.5 - Settings
+
+##### 2.2.5.1 - Connections
 
 A utility representing an internet connection point shall have the tag "ghi-connection", and shall
 have the property fields "name", containing a string specifying the name of the access point, and
@@ -112,7 +126,7 @@ A utility representing an Orca log location for dynamic casting shall have the t
 its content shall be an [OQL](https://github.com/Telos-Project/OmniQuery) query specifying the
 location of said log.
 
-##### 2.2.3.2 - Credentials
+##### 2.2.5.2 - Credentials
 
 A utility representing an access token for the node shall have the tag "ghi-token", and its content
 shall be said token.
