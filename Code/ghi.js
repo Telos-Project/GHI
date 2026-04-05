@@ -4,12 +4,13 @@ var cronUtils = require("./cronUtils.js");
 var deviceUtils = require("./deviceUtils.js");
 var dynamicCast = require("./dynamicCast.js");
 var fs = require("fs");
+var gpioUtils = require("./gpioUtils.js");
 var path = require("path");
 var serverUtils = require("telos-server/serverUtils.js");
 var telosUtils = require("telos-origin/telosUtils.js");
 
 var modules = [];
-var state = { };
+var state = { utilities: { } };
 
 var persistPath = "~/.local/share/ghi/ghi.json";
 
@@ -27,9 +28,12 @@ function getByType(package, type, primary) {
 	);
 }
 
-function overlay(target, value) {
+function overlay(target, value, preserve) {
 	
 	Object.keys(value).forEach(key => {
+
+		if(target[key] != null && preserve)
+			return;
 
 		if(typeof target[key] == "object" && !Array.isArray(target[key]))
 			target[key] = overlay(target[key], value[key]);
@@ -83,7 +87,9 @@ module.exports = [
 	telosUtils.createTask(60, false, () => {
 
 		deviceUtils.getDevices((data) => {
-			state = data;
+
+			state.utilities = state.utilities != null ?
+				overlay(state.utilities, data, true) : data;
 		});
 	}),
 	telosUtils.createTask(1 / 60, false, () => {
@@ -115,6 +121,9 @@ module.exports = [
 		).forEach(update => {
 
 			try {
+
+				if(update == null)
+					return;
 
 				state = overlay(
 					state,
@@ -196,7 +205,7 @@ module.exports = [
 
 			packet = typeof packet == "string" ? JSON.parse(packet) : packet;
 
-			let tokens = state.getByType(
+			let tokens = getByType(
 				packet.content.state, "ghi-token"
 			).map(item => `Bearer ${item.content}`);
 
@@ -215,8 +224,8 @@ module.exports = [
 
 			let result = { };
 
-			state.getByType(
-				packet.content.state, "ghi-script"
+			getByType(
+				packet.content, "ghi-script"
 			).forEach(item => {
 				
 				if(![
@@ -242,5 +251,24 @@ module.exports = [
 
 			return result;
 		}
-	}
+	},
+	telosUtils.createTask(1 / 60, false, () => {
+
+		getByType(
+			state, "ghi-channel"
+		).filter(item => item.properties?.channel?.type == "gpio").forEach(
+			item => {
+
+				Object.keys(item.properties?.channel?.input).forEach(
+					key => {
+
+						gpioUtils.setPin(
+							parseInt(key),
+							item.properties?.channel?.input[key]
+						);
+					}
+				);
+			}
+		);
+	})
 ];
