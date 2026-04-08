@@ -1,4 +1,5 @@
 var apint = require("apint");
+var bluetoothUtils = require("./bluetoothUtils.js");
 var busNet = require("bus-net");
 var cronUtils = require("./cronUtils.js");
 var deviceUtils = require("./deviceUtils.js");
@@ -274,6 +275,37 @@ module.exports = [
 							);
 						}
 					);
+				}
+			);
+		}
+	},
+	{
+		query: (packet) => {
+
+			if(!telosUtils.validatePacket(packet, ["ghi", "process"]))
+				return;
+
+			packet = typeof packet == "string" ? JSON.parse(packet) : packet;
+
+			getByType(
+				packet.content, "ghi-channel"
+			).filter(
+				item => item.properties?.channel?.type == "bluetooth"
+			).forEach(
+				item => {
+
+					if(!Array.isArray(item.properties?.channel?.input))
+						return;
+
+					if(item.properties?.channel?.input.length == 0)
+						return;
+
+					bluetoothUtils.send(
+						item.properties?.channel?.properties?.mac,
+						item.properties?.channel?.input
+					);
+
+					item.properties.channel.input = [];
 				}
 			);
 		}
