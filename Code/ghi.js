@@ -54,7 +54,7 @@ module.exports = [
 
 		cronUtils.createJob({
 			id: "ghi-enable",
-			command: `${
+			command: `sudo env "PATH=$PATH" ${
 				require("child_process").execFileSync(
 					"which", ["npx"], { encoding: "utf8" }
 				).trim()
