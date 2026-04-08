@@ -187,6 +187,8 @@ module.exports = [
 
 			if(packet.request.method == "POST") {
 
+				console.log("RECIEVED", packet.body);
+
 				try {
 					state = overlay(state, JSON.parse(packet.body));
 				}
@@ -252,23 +254,30 @@ module.exports = [
 			return result;
 		}
 	},
-	telosUtils.createTask(1 / 60, false, () => {
+	{
+		query: (packet) => {
 
-		getByType(
-			state, "ghi-channel"
-		).filter(item => item.properties?.channel?.type == "gpio").forEach(
-			item => {
+			if(!telosUtils.validatePacket(packet, ["ghi", "process"]))
+				return;
 
-				Object.keys(item.properties?.channel?.input).forEach(
-					key => {
+			packet = typeof packet == "string" ? JSON.parse(packet) : packet;
 
-						gpioUtils.setPin(
-							parseInt(key),
-							item.properties?.channel?.input[key]
-						);
-					}
-				);
-			}
-		);
-	})
+			getByType(
+				packet.content, "ghi-channel"
+			).filter(item => item.properties?.channel?.type == "gpio").forEach(
+				item => {
+
+					Object.keys(item.properties?.channel?.input).forEach(
+						key => {
+
+							gpioUtils.setPin(
+								parseInt(key),
+								item.properties?.channel?.input[key]
+							);
+						}
+					);
+				}
+			);
+		}
+	}
 ];
