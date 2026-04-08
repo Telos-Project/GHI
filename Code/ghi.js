@@ -187,8 +187,6 @@ module.exports = [
 
 			if(packet.request.method == "POST") {
 
-				console.log("RECIEVED", packet.body);
-
 				try {
 					state = overlay(state, JSON.parse(packet.body));
 				}
