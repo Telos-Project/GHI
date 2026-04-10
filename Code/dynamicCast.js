@@ -141,25 +141,7 @@ async function cast(port, target, tags) {
 			`http://localhost:${port}`
 		]);
 
-		cf.stdout.on("data", data => {
-
-			let url = (
-				data.toString().match(/https?:\/\/[^\s/$.?#].[^\s]*/gi) || []
-			).filter(url => url.endsWith(".trycloudflare.com"))[0];
-
-			tunnel = url != null ? url : tunnel;
-		});
-
-		cf.stderr.on("data", data => {
-
-			let url = (
-				data.toString().match(/https?:\/\/[^\s/$.?#].[^\s]*/gi) || []
-			).filter(url => url.endsWith(".trycloudflare.com"))[0];
-
-			tunnel = url != null ? url : tunnel;
-		});
-
-		setInterval(() => {
+		let intervalOperation = () => {
 
 			if(tunnel != null) {
 
@@ -198,7 +180,37 @@ async function cast(port, target, tags) {
 					)
 				`);
 			}
-		}, 60 * 1000);
+		};
+
+		cf.stdout.on("data", data => {
+
+			let url = (
+				data.toString().match(/https?:\/\/[^\s/$.?#].[^\s]*/gi) || []
+			).filter(url => url.endsWith(".trycloudflare.com"))[0];
+
+			let flag = tunnel == null;
+
+			tunnel = url != null ? url : tunnel;
+
+			if(tunnel != null && flag)
+				intervalOperation();
+		});
+
+		cf.stderr.on("data", data => {
+
+			let url = (
+				data.toString().match(/https?:\/\/[^\s/$.?#].[^\s]*/gi) || []
+			).filter(url => url.endsWith(".trycloudflare.com"))[0];
+
+			let flag = tunnel == null;
+
+			tunnel = url != null ? url : tunnel;
+
+			if(tunnel != null && flag)
+				intervalOperation();
+		});
+
+		setInterval(intervalOperation, 60 * 1000);
 	}
 
 	catch(error) {

@@ -1,4 +1,5 @@
 var apint = require("apint");
+var autoCORS = require("telos-autocors");
 var bluetoothUtils = require("./bluetoothUtils.js");
 var busNet = require("bus-net");
 var cronUtils = require("./cronUtils.js");
@@ -15,6 +16,8 @@ var state = { utilities: { } };
 
 var persistPath = "~/.local/share/ghi/ghi.json";
 
+var macs = { };
+
 function getByType(package, type, primary) {
 
 	return apint.queryUtilities(
@@ -30,7 +33,7 @@ function getByType(package, type, primary) {
 }
 
 function overlay(target, value, preserve) {
-	
+
 	Object.keys(value).forEach(key => {
 
 		if(target[key] != null && preserve)
@@ -104,9 +107,9 @@ module.exports = [
 			modules.push(item);
 
 			try {
-				
+
 				let value = use(item);
-				
+
 				(Array.isArray(value) ? value : [value]).forEach(busModule => {
 					busNet.connect(busNet.anchor, busModule, null, true)
 				});
@@ -149,7 +152,7 @@ module.exports = [
 					(value, item, index) => {
 
 						value[`${index}`] = item;
-						
+
 						return value;
 					},
 					{ }
@@ -163,7 +166,7 @@ module.exports = [
 	}),
 	{
 		query: (packet) => {
-			
+
 			if(!serverUtils.isHTTPJSON(packet))
 				return null;
 
@@ -194,6 +197,22 @@ module.exports = [
 
 				catch(error) {
 
+					return new Promise((resolve, reject) => {
+
+						try {
+
+							autoCORS.send(packet.body, (response) => {
+								
+								resolve(
+									Object.assign(response, { priority: 1 })
+								);
+							});
+						}
+
+						catch(error) {
+							resolve({ body: `${error.stack}`, priority: 1 });
+						}
+					});
 				}
 			}
 		}
@@ -228,11 +247,11 @@ module.exports = [
 			getByType(
 				packet.content, "ghi-script"
 			).forEach(item => {
-				
+
 				if(![
 					"javascript", "js"
 				].includes(item.properties.language.toLowerCase())) {
-					
+
 					try {
 
 						let value = (new Function(item.content))(
@@ -300,6 +319,15 @@ module.exports = [
 					if(item.properties?.channel?.input.length == 0)
 						return;
 
+					if(macs[item.properties?.channel?.properties?.mac] ==
+						JSON.stringify(item.properties?.channel?.input)) {
+
+						return;
+					}
+
+					macs[item.properties?.channel?.properties?.mac] =
+						JSON.stringify(item.properties?.channel?.input);
+
 					bluetoothUtils.send(
 						item.properties?.channel?.properties?.mac,
 						item.properties?.channel?.input
@@ -308,6 +336,8 @@ module.exports = [
 					item.properties.channel.input = [];
 				}
 			);
+
+			return packet.content;
 		}
 	}
 ];

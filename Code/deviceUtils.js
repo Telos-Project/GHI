@@ -10,7 +10,10 @@ var deviceUtils = {
 			deviceUtils.getDevicesWiFi()
 		]).then(values => {
 
-			callback(values.concat(deviceUtils.getDevicesGPIO()).reduce(
+			callback(values.concat([
+				deviceUtils.getDevicesGPIO(),
+				deviceUtils.getDevicesSystem()
+			]).reduce(
 				(value, item) => {
 
 					Object.assign(value, item);
@@ -36,6 +39,7 @@ var deviceUtils = {
 						value[`BLUETOOTH-${item.mac}`] = {
 							"properties": {
 								"tags": ["ghi", "ghi-channel"],
+								"links": [{ "target": ["SYSTEM"] }],
 								"channel": {
 									"type": "bluetooth",
 									"input": [],
@@ -61,13 +65,11 @@ var deviceUtils = {
 			"GPIO": {
 				"properties": {
 					"tags": ["ghi", "ghi-channel"],
+					"links": [{ "target": ["SYSTEM"] }],
 					"channel": {
 						"type": "gpio",
-						"input": [],
-						"output": [],
-						"properties": {
-							"pins": 40
-						}
+						"input": { },
+						"output": { }
 					}
 				}
 			}
@@ -88,6 +90,49 @@ var deviceUtils = {
 				}
 			);
 		});
+	},
+	getDevicesSystem: () => {
+
+		let model = null;
+
+		try {
+
+			model = fs.readFileSync(
+				'/proc/cpuinfo', 'utf8'
+			).split("\n").filter(
+				line => line.trim().length > 0
+			).map(line => line.split(":")).reduce(
+				((value, item) => {
+
+					value[item[0].trim()] = item[1].trim();
+
+					return value;
+				})
+			)["Model"];
+		}
+
+		catch(error) {
+
+		}
+
+		return {
+			"SYSTEM": {
+				"properties": {
+					"tags": ["ghi", "ghi-channel"],
+					"channel": {
+						"type": "system",
+						"input": [],
+						"output": [],
+						"properties": {
+							"id": fs.readFileSync(
+								'/etc/machine-id', 'utf8'
+							).trim(),
+							"model": model
+						}
+					}
+				}
+			}
+		};
 	},
 	getDevicesWiFi: () => {
 
@@ -112,6 +157,9 @@ var deviceUtils = {
 									value[`WIFI-${item}`] = {
 										"properties": {
 											"tags": ["ghi", "ghi-channel"],
+											"links": [
+												{ "target": ["SYSTEM"] }
+											],
 											"channel": {
 												"type": "wifi",
 												"input": [],
@@ -142,6 +190,7 @@ var deviceUtils = {
 			let device = {
 				properties: {
 					tags: ["ghi", "ghi-channel"],
+					links: [{ target: ["SYSTEM"] }],
 					channel: {
 						type: "usb",
 						input: [],
