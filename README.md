@@ -22,6 +22,9 @@ A GHI node's state may be serialized in the GHI format. This state may be retrie
 format using a GET request to the aformentioned endpoint, and may be updated with a POST request
 containing new state content serialized in the GHI format.
 
+Alternatively, if the server receives a POST request containing a raw HTTP request as its body, it
+shall execute said request as a proxy, granting the client access to devices on its local network.
+
 A GHI node's state may include tokens which, if present, indicated that one must be included as a
 bearer token in the headers of any request made to its server.
 
