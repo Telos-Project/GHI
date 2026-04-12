@@ -10,6 +10,7 @@ var gpioUtils = require("./gpioUtils.js");
 var path = require("path");
 var serverUtils = require("telos-server/serverUtils.js");
 var telosUtils = require("telos-origin/telosUtils.js");
+var wifiUtils = require('./wifiUtils.js');
 
 var modules = [];
 var state = { utilities: { } };
@@ -18,7 +19,38 @@ var persistPath = "~/.local/share/ghi/ghi.json";
 
 var macs = { };
 
-function getByType(package, type, primary) {
+function getByType(package, type, primary, shallow) {
+
+	if(shallow) {
+
+		let utilities = [];
+
+		if(typeof package.utilities == "object") {
+
+			utilities = utilities.concat(
+				Object.values(package.utilities).filter(utility =>
+					Array.isArray(utility.properties?.tags) ?
+						(primary ?
+							utility.properties?.tags?.indexOf(type) == 0 :
+							utility.properties?.tags?.indexOf(type) != -1
+						) :
+						utility.properties?.tags?.toLowerCase() ==
+							type.toLowerCase()
+				)
+			);
+		}
+
+		if(typeof package.packages == "object") {
+
+			Object.values(package.packages).map(
+				item => getByType(item, type, primary, shallow)
+			).forEach(items => {
+				utilities = utilities.concat(items);
+			});
+		}
+
+		return utilities;
+	}
 
 	return apint.queryUtilities(
 		package,
@@ -339,5 +371,72 @@ module.exports = [
 
 			return packet.content;
 		}
-	}
+	},
+	telosUtils.createTask(1, false, () => {
+
+		try {
+			
+			let devices = wifiUtils.getDevices().filter(
+				device => device != "wlan0"
+			);
+
+			if(devices.length < 1)
+				return;
+
+			let connections = wifiUtils.getConnections();
+
+			let index = 0;
+
+			let items = getByType(
+				state, "ghi-channel", false, true
+			).filter(
+				item => item.properties?.channel?.type == "wifi"
+			);
+
+			items.forEach(
+				item => {
+
+					if(typeof item.properties?.channel?.input != "boolean")
+						return;
+					
+					if(!item.properties?.channel?.input)
+						return;
+
+					let ssid = item.properties?.channel?.properties?.SSID;
+
+					if(Object.values(connections).includes(ssid))
+						return;
+
+					let device = devices[index];
+
+					index++;
+
+					if(index >= devices.length)
+						index = 0;
+					
+					wifiUtils.connect(
+						device,
+						ssid,
+						item.properties?.channel?.properties?.password
+					);
+				}
+			);
+
+			connections = wifiUtils.getConnections();
+
+			items.forEach(
+				item => {
+
+					item.properties.channel.input =
+						Object.values(connections).includes(
+							item.properties?.channel?.properties?.ssid
+						);
+				}
+			);
+		}
+
+		catch(error) {
+
+		}
+	})
 ];
