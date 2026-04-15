@@ -2,12 +2,14 @@ var apint = require("apint");
 var autoCORS = require("telos-autocors");
 var bluetoothUtils = require("./bluetoothUtils.js");
 var busNet = require("bus-net");
+var child_process = require("child_process");
 var cronUtils = require("./cronUtils.js");
 var deviceUtils = require("./deviceUtils.js");
 var dynamicCast = require("./dynamicCast.js");
 var fs = require("fs");
 var gpioUtils = require("./gpioUtils.js");
 var path = require("path");
+var serialUtils = require("./serialUtils.js");
 var serverUtils = require("telos-server/serverUtils.js");
 var telosUtils = require("telos-origin/telosUtils.js");
 var wifiUtils = require('./wifiUtils.js');
@@ -345,8 +347,13 @@ module.exports = [
 			).forEach(
 				item => {
 
-					if(!Array.isArray(item.properties?.channel?.input))
+					if(!(
+						Array.isArray(item.properties?.channel?.input) ||
+						typeof item.properties?.channel?.input == "string"
+					)) {
+
 						return;
+					}
 
 					if(item.properties?.channel?.input.length == 0)
 						return;
@@ -355,6 +362,18 @@ module.exports = [
 						JSON.stringify(item.properties?.channel?.input)) {
 
 						return;
+					}
+
+					if(
+						macs[item.properties?.channel?.properties?.mac] == null
+					) {
+
+						bluetoothUtils.listen(
+							item.properties?.channel?.properties?.mac,
+							(data) => {
+								item.properties.channel.output = data;
+							}
+						);
 					}
 
 					macs[item.properties?.channel?.properties?.mac] =
@@ -438,5 +457,105 @@ module.exports = [
 		catch(error) {
 
 		}
-	})
+	}),
+	telosUtils.createTask(1 / 60, false, () => {
+
+		let items = getByType(
+			state, "ghi-channel", false, true
+		).filter(
+			item => item.properties?.channel?.type == "system"
+		);
+
+		items.forEach(item => {
+
+			if(Array.isArray(item.properties?.channel?.input))
+				return;
+			
+			if(item.properties.channel.input.length == 0)
+				return;
+
+			item.properties.channel.output = [];
+
+			item.properties.channel.input.forEach((command, index) => {
+
+				item.properties.channel.output.push(null);
+
+				try {
+
+					child_process.exec(command, (error, out) => {
+
+						item.properties.channel.output[index] =
+							error != null ? `${error.stack}` : out;
+					});
+				}
+
+				catch(error) {
+					item.properties.channel.output[index] = `${error.stack}`;
+				}
+			});
+
+			item.properties.channel.input = [];
+		});
+	}),
+	{
+		query: (packet) => {
+
+			if(!telosUtils.validatePacket(packet, ["ghi", "process"]))
+				return;
+
+			packet = typeof packet == "string" ? JSON.parse(packet) : packet;
+
+			getByType(
+				packet.content, "ghi-channel"
+			).filter(
+				item => item.properties?.channel?.type == "usb"
+			).forEach(
+				item => {
+
+					if(!(
+						Array.isArray(item.properties?.channel?.input) ||
+						typeof item.properties?.channel?.input == "string"
+					)) {
+
+						return;
+					}
+
+					if(item.properties?.channel?.input.length == 0)
+						return;
+
+					let id = `USB-${
+						item.properties?.channel?.properties?.deviceAddress
+					}`;
+
+					if(macs[id] ==
+						JSON.stringify(item.properties?.channel?.input)) {
+
+						return;
+					}
+
+					if(macs[id] == null) {
+
+						serialUtils.listen(
+							item.properties.channel.properties,
+							(data) => {
+								item.properties.channel.output = data;
+							}
+						);
+					}
+
+					macs[item.properties.channel.properties.deviceAddress] =
+						JSON.stringify(item.properties?.channel?.input);
+
+					serialUtils.send(
+						item.properties.channel.properties.deviceAddress,
+						item.properties?.channel?.input
+					);
+
+					item.properties.channel.input = [];
+				}
+			);
+
+			return packet.content;
+		}
+	}
 ];
