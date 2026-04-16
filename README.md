@@ -68,7 +68,8 @@ created reverse tunnel. At regular intervals, the server publishes a record to a
 Each record contains a persistent device ID, a temporary tunnel URL, and a creation timestamp.
 Clients read from this registry and use the tunnel URL to communicate directly with the server.
 
-GHI nodes use [Orca](https://github.com/Telos-Project/Orca) logs for dynamic casting.
+GHI nodes use [Orca](https://github.com/Telos-Project/Orca) logs for dynamic casting, and Orca
+objects used for this purpose may be ephemeral.
 
 #### 2.1.8 - Interfaces
 
