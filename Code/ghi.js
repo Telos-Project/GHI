@@ -458,45 +458,52 @@ module.exports = [
 
 		}
 	}),
-	telosUtils.createTask(1 / 60, false, () => {
+	{
+		query: (packet) => {
 
-		let items = getByType(
-			state, "ghi-channel", false, true
-		).filter(
-			item => item.properties?.channel?.type == "system"
-		);
-
-		items.forEach(item => {
-
-			if(Array.isArray(item.properties?.channel?.input))
-				return;
-			
-			if(item.properties.channel.input.length == 0)
+			if(!telosUtils.validatePacket(packet, ["ghi", "process"]))
 				return;
 
-			item.properties.channel.output = [];
+			let items = getByType(
+				state, "ghi-channel", false, true
+			).filter(
+				item => item.properties?.channel?.type == "system"
+			);
 
-			item.properties.channel.input.forEach((command, index) => {
+			items.forEach(item => {
 
-				item.properties.channel.output.push(null);
+				if(!Array.isArray(item.properties?.channel?.input))
+					return;
+				
+				if(item.properties.channel.input.length == 0)
+					return;
 
-				try {
+				item.properties.channel.output = [];
 
-					child_process.exec(command, (error, out) => {
+				item.properties.channel.input.forEach((command, index) => {
+
+					item.properties.channel.output.push(null);
+
+					try {
+
+						child_process.exec(command, (error, out) => {
+
+							item.properties.channel.output[index] =
+								error != null ? `${error.stack}` : out;
+						});
+					}
+
+					catch(error) {
 
 						item.properties.channel.output[index] =
-							error != null ? `${error.stack}` : out;
-					});
-				}
+							`${error.stack}`;
+					}
+				});
 
-				catch(error) {
-					item.properties.channel.output[index] = `${error.stack}`;
-				}
+				item.properties.channel.input = [];
 			});
-
-			item.properties.channel.input = [];
-		});
-	}),
+		}
+	},
 	{
 		query: (packet) => {
 
