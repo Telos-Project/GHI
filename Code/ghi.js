@@ -84,6 +84,10 @@ function overlay(target, value, preserve) {
 }
 
 module.exports = [
+	telosUtils.createCommand("ghi-disable", (package) => {
+		
+		cronUtils.removeJob({ id: "ghi-enable" });
+	}),
 	telosUtils.createCommand("ghi-enable", (package) => {
 
 		let args = telosUtils.getArguments(package);
