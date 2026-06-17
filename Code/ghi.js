@@ -86,25 +86,39 @@ function overlay(target, value, preserve) {
 module.exports = [
 	telosUtils.createCommand("ghi-disable", (package) => {
 		
-		cronUtils.removeJob({ id: "ghi-enable" });
+		child_process.execSync("systemctl disable ghi.service");
+		child_process.execSync("systemctl stop ghi.service");
 	}),
 	telosUtils.createCommand("ghi-enable", (package) => {
 
 		let args = telosUtils.getArguments(package);
+		let npxPath = child_process.execSync("which npx").toString().trim();
 
-		cronUtils.removeJob({ id: "ghi-enable" });
+		fs.writeFileSync(
+			"/etc/systemd/system/ghi.service",
+`[Unit]
+Description=Run npx telos-origin after network is online
+Wants=network-online.target
+After=network-online.target
 
-		cronUtils.createJob({
-			id: "ghi-enable",
-			command: `sudo env "PATH=$PATH" ${
-				require("child_process").execFileSync(
-					"which", ["npx"], { encoding: "utf8" }
-				).trim()
-			} telos-origin telos-server telos-ghi -e ghi -port ${
-				args.options.port != null ? args.options.port : 3000
-			} -pool '${args.options.pool}'`,
-			trigger: { type: "startup" },
-		});
+[Service]
+Type=simple
+User=root
+Environment=HOME=${npxPath.split("/").slice(0, 3).join("/")}
+Environment=PATH=${
+	npxPath.substring(0, npxPath.lastIndexOf("/"))
+}:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+WorkingDirectory=${process.cwd()}
+ExecStart=${npxPath} telos-origin telos-server telos-ghi -e ghi -port ${
+	args.options.port != null ? args.options.port : 3000
+} -pool '${args.options.pool}'
+
+[Install]
+WantedBy=multi-user.target`
+		);
+
+		child_process.execSync("systemctl daemon-reload");
+		child_process.execSync("systemctl enable ghi.service");
 	}),
 	telosUtils.createCommand("ghi", (package) => {
 
