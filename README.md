@@ -19,13 +19,13 @@ The primary interface to a GHI node is an endpoint on an HTTP server which is ru
 device, generally located at the root URL of the server.
 
 A GHI node's state may be serialized in the GHI format. This state may be retrieved in the GHI
-format using a GET request to the aformentioned endpoint, and may be updated with a POST request
+format using a GET request to the aforementioned endpoint, and may be updated with a POST request
 containing new state content serialized in the GHI format.
 
 Alternatively, if the server receives a POST request containing a raw HTTP request as its body, it
 shall execute said request as a proxy, granting the client access to devices on its local network.
 
-A GHI node's state may include tokens which, if present, indicated that one must be included as a
+A GHI node's state may include tokens which, if present, indicate that one must be included as a
 bearer token in the headers of any request made to its server.
 
 #### 2.1.2 - Channels
@@ -33,7 +33,7 @@ bearer token in the headers of any request made to its server.
 The state of a GHI node is to include its channels, these being its physical I/O interfaces and its
 command line. The serialization of each channel is to include input to feed through said channel on
 the next loop, and the output recieved via said channel on the last loop, as well as the channel's
-type along with a unique ID to distinugish channels of the same type.
+type along with a unique ID to distinguish channels of the same type.
 
 #### 2.1.3 - Satellites
 
@@ -79,7 +79,7 @@ are referred to as GHI interfaces.
 ### 2.2 - Format
 
 The GHI format is an [APInt](https://github.com/Telos-Project/APInt) format, with all utilities
-relavent to GHI having the tag "ghi".
+relevant to GHI having the tag "ghi".
 
 All GHI utilities must therefore use the tags property protocol, and may optionally use the ID
 property protocol.
@@ -97,6 +97,64 @@ not possessing either of those, "stream", containing a string URL to stream data
 
 Channels may use the links property protocol to to establish unidirectional links respresenting
 satellite relationships, from parent to child.
+
+##### 2.2.1.1 - System Channel
+
+GHI channels with the type "system" represent the system running the GHI node.
+
+The input field for a system channel shall be an array of strings containing terminal commands for
+the system to execute. Upon execution, said commands shall be executed in order, they shall be
+cleared from the input array, and their outputs shall be written in order as a string array to the
+output field of the channel, with any previous output being cleared in the process.
+
+##### 2.2.1.2 - GPIO Channel
+
+GHI channels with the type "gpio" represent a GPIO interface of the device running the GHI node.
+
+A GPIO channel shall have the property "pins", containing a number specifying how many pins the
+GPIO interface has.
+
+The input field for a GPIO channel shall be an object where each key is a number specifying the
+numerical ID of a given pin. Each such field may contain true, which turns the pin on, false, which
+turns the pin off, or may be a number ranging from zero to one, inclusive, to send analog output.
+The output field, derived by reading the states of the pins, is formatted the same way.
+
+##### 2.2.1.3 - USB Channel
+
+GHI channels with the type "usb" represent USB devices connected to the device running the GHI
+node.
+
+A USB channel shall have the properties "bus", "deviceAddress", "vendorId", "productId", "vendor",
+"product", and "serial", containing infomation specifying the corresponding properties for the
+connected device.
+
+The input field for a USB channel shall be a string, or an array of numbers or 8 bit hex strings,
+to send to the connected device, after which it will be cleared. The output field, derived by
+reading the most recent incoming data from the device, is formatted the same way.
+
+##### 2.2.1.4 - Wi-Fi Channel
+
+GHI channels with the type "wifi" represent Wi-Fi access points within range of the device running
+the GHI node.
+
+A Bluetooth channel shall have the property "SSID", containing a string specifying the SSID of the
+access point.
+
+The input field for a Wi-Fi channel is a boolean which, if true, indicates that the device running
+the GHI node is, or is to be, connected to the access point, and if false, indicates that the
+device running the GHI node is, or is to be, disconnected from the access point.
+
+##### 2.2.1.5 - Bluetooth Channel
+
+GHI channels with the type "bluetooth" represent Bluetooth devices within range of the device
+running the GHI node.
+
+A Bluetooth channel shall have the properties "mac" and "name", containing strings specifying the
+corresponding properties for the connected device.
+
+The input field for a Bluetooth channel shall be a string, or an array of numbers or 8 bit hex
+strings, to send to the connected device, after which it will be cleared. The output field, derived
+by reading the most recent incoming data from the device, is formatted the same way.
 
 #### 2.2.2 - Scripts
 
@@ -127,10 +185,30 @@ have the property fields "name", containing a string specifying the name of the 
 "password", containing a string specifying the password of the access point.
 
 A utility representing an Orca log location for dynamic casting shall have the tag "ghi-log", and
-its content shall be an [OQL](https://github.com/Telos-Project/OmniQuery) query specifying the
+its content shall be an [OQL](https://github.com/Telos-Project/OmniQuery) selector specifying the
 location of said log.
 
 ##### 2.2.5.2 - Credentials
 
 A utility representing an access token for the node shall have the tag "ghi-token", and its content
 shall be said token.
+
+#### 2.2.6 - Usage
+
+GHI can be set to execute at boot on any Linux system with Node.js installed by running the
+following command:
+
+    sudo env "PATH=$PATH" npx telos-origin telos-ghi -e ghi-enable -pool YOUR_OQL_SELECTOR
+
+Where YOUR_OQL_SELECTOR is replaced by an OQL selector for the database location you want the
+dynamic casting to be logged to.
+
+For example, an SQL table's selector would look like this:
+
+    (at (access "DB_CONNECTION_STRING") "TABLE_NAME")
+
+And a Mongo collection's selector would look like this:
+
+    (at (access "DB_CONNECTION_STRING") "DATABASE_NAME" "COLLECTION_NAME")
+
+Both of which are best escaped using single quotes.
